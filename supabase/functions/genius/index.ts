@@ -13,6 +13,10 @@ Deno.serve(async (request) => {
   if (!accessToken) return json({ error: 'Server misconfigured' }, 500);
   try {
     const body = await request.json();
+    if (body.action === 'recent') {
+      const songs = await supabaseRequest('/rest/v1/songs?select=genius_id,title,artist,artwork_url,genius_url&order=created_at.desc&limit=5');
+      return json({ songs: songs.map((song: Record<string, unknown>) => ({ geniusId: song.genius_id, title: song.title, artist: song.artist, artworkUrl: song.artwork_url, geniusUrl: song.genius_url })) });
+    }
     if (body.action === 'search' && typeof body.query === 'string' && body.query.trim()) {
       const response = await geniusRequest(`/search/?q=${encodeURIComponent(body.query.trim())}&per_page=20&page=1`, accessToken);
       const songs = response.hits
