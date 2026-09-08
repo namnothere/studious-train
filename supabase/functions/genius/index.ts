@@ -14,7 +14,7 @@ Deno.serve(async (request) => {
   try {
     const body = await request.json();
     if (body.action === 'search' && typeof body.query === 'string' && body.query.trim()) {
-      const response = await geniusRequest(`/search?q=${encodeURIComponent(body.query.trim())}&per_page=20&page=1`, accessToken);
+      const response = await geniusRequest(`/search/?q=${encodeURIComponent(body.query.trim())}&per_page=20&page=1`, accessToken);
       const songs = response.hits
         .map(({ result }: { result: Record<string, unknown> }) => ({ geniusId: result.id, title: result.title, artist: (result.primary_artist as { name: string }).name, artworkUrl: result.header_image_url ?? null, geniusUrl: result.url, instrumental: result.instrumental === true, lyricsState: result.lyrics_state }))
         .filter((song: { instrumental: boolean; lyricsState: unknown }) => !song.instrumental && song.lyricsState === 'complete')
@@ -24,8 +24,8 @@ Deno.serve(async (request) => {
     if (body.action === 'song' && body.song && Number.isInteger(body.song.geniusId)) {
       const cached = await supabaseRequest(`/rest/v1/songs?genius_id=eq.${body.song.geniusId}&select=*`);
       if (cached[0]) return json({ song: { ...body.song, lyrics: cached[0].lyrics } });
-      const response = await geniusRequest(`/song/lyrics/${body.song.geniusId}`, accessToken);
-      const lyrics = response.lyrics?.lyrics?.body?.plain ?? null;
+      const response = await geniusRequest(`/song/lyrics/?id=${body.song.geniusId}/`, accessToken);
+      const lyrics = response.response?.lyrics?.lyrics?.body?.plain ?? null;
       if (typeof lyrics !== 'string' || !lyrics.trim()) return json({ error: 'Lyrics unavailable' }, 404);
       const inserted = await supabaseRequest('/rest/v1/songs', {
         method: 'POST', headers: { Prefer: 'return=representation' },
@@ -81,8 +81,9 @@ async function geniusRequest(path: string, accessToken: string) {
       'x-rapidapi-host': geniusHost,
     }
   });
-  if (!response.ok) throw new Error('Genius request failed');
-  return response.json();
+  const body = await response.text();
+  if (!response.ok) throw new Error(`Genius request failed (${response.status}): ${body.slice(0, 300)}`);
+  return JSON.parse(body);
 }
 
 function base64urlBytes(value: string) {

@@ -15,7 +15,7 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+	import { clearAccessToken, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
 	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
 	type CachedSong = SearchSong & { lyrics: string };
 	const searchView = document.querySelector<HTMLElement>('#search-view'), lyricsView = document.querySelector<HTMLElement>('#lyrics-view'), form = document.querySelector<HTMLFormElement>('#search-form'), input = document.querySelector<HTMLInputElement>('#search-input'), status = document.querySelector<HTMLElement>('#search-status'), results = document.querySelector<HTMLElement>('#results'), title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), lyricsBody = document.querySelector<HTMLElement>('#lyrics-body');
@@ -24,6 +24,7 @@ import Layout from '../layouts/Layout.astro';
 		const token = localStorage.getItem('kotoba.access_token');
 		if (!supabaseUrl || !supabaseAnonKey || !token) throw new Error('Not authorized');
 		const response = await fetch(`${supabaseUrl}/functions/v1/genius`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		if (response.status === 401) { clearAccessToken(); window.location.assign('/'); throw new Error('Not authorized'); }
 		if (!response.ok) throw new Error('Genius request failed');
 		return response.json();
 	}

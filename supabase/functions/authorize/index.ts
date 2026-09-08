@@ -38,7 +38,7 @@ async function createAccessToken(secret: string) {
   const now = Math.floor(Date.now() / 1000);
   const encode = (value: unknown) => base64url(JSON.stringify(value));
   const header = encode({ alg: 'HS256', typ: 'JWT' });
-  const payload = encode({ aud: 'authenticated', role: 'authenticated', sub: '00000000-0000-0000-0000-000000000001', iat: now, exp: now + 3600 });
+  const payload = encode({ aud: 'authenticated', role: 'authenticated', sub: '00000000-0000-0000-0000-000000000001', iat: now, exp: now + 86400 });
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${header}.${payload}`));
   return `${header}.${payload}.${base64url(signature)}`;
