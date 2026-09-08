@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" class="bg-[#0d0f10]">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kotoba — Private Access</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-[#0d0f10] text-[#f3f4f1] antialiased">
+  <div class="min-h-screen">
+    <header class="fixed inset-x-0 top-0 z-20 flex h-14 items-center justify-between bg-[#0d0f10]/90 px-6 backdrop-blur">
+      <div class="text-[13px] font-extrabold tracking-[0.08em]">kotoba</div>
+      <div class="text-xs text-[#8a908d]">private access</div>
+    </header>
+    <main class="flex min-h-screen items-center justify-center px-6 pb-12 pt-14">
+      <div class="w-full max-w-sm">
+        <div class="mb-8 flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#181b1c] text-[#d7ff72]">
+            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+          </div>
+          <div><div class="text-sm font-semibold">Access required</div><div class="mt-1 text-xs text-[#8a908d]">Enter your credentials to continue.</div></div>
+        </div>
+        <form id="unlock-form" class="space-y-5">
+          <div><label class="mb-2 block text-xs text-[#8a908d]">Credential</label><input id="credential" type="password" autocomplete="current-password" placeholder="••••••••••••" class="w-full border-0 border-b border-[#2a2e2f] bg-transparent px-0 py-3 text-base text-[#f3f4f1] outline-none placeholder:text-[#505653] focus:border-[#555d59] focus:ring-0" /></div>
+          <button id="unlock-button" type="submit" class="inline-flex min-w-[92px] items-center justify-center gap-2 rounded-lg bg-[#181b1c] px-4 py-2.5 text-sm font-medium text-[#d9ddda] transition hover:bg-[#202425] disabled:cursor-default disabled:opacity-70"><span id="button-content" class="inline-flex items-center gap-2">Unlock <span class="text-[#8a908d]">→</span></span></button>
+        </form>
+        <div id="error" class="mt-4 hidden text-xs text-[#d58c8c]">Access denied.</div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const form=document.getElementById('unlock-form'),button=document.getElementById('unlock-button'),content=document.getElementById('button-content'),error=document.getElementById('error');
+    form.addEventListener('submit',event=>{event.preventDefault();error.classList.add('hidden');button.disabled=true;content.innerHTML='<span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#67706c] border-t-[#d7ff72]"></span>';setTimeout(()=>{button.disabled=false;content.innerHTML='Unlock <span class="text-[#8a908d]">→</span>'},900)});
+  </script>
+</body>
+</html>
