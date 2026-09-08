@@ -1,0 +1,55 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Lyrics · Kotoba">
+	<header class="fixed inset-x-0 top-0 z-20 flex h-14 items-center justify-between bg-[#0d0f10]/90 px-6 backdrop-blur">
+		<a href="/songs" class="text-[13px] font-extrabold tracking-[0.08em]">kotoba</a>
+	</header>
+	<main class="mx-auto min-h-screen max-w-4xl px-6 pb-24 pt-20">
+		<a href="/songs" class="mb-8 inline-block text-xs text-[#8a908d] transition hover:text-[#d7ff72]">← Back to songs</a>
+		<section aria-labelledby="lyrics-title">
+			<div class="mb-8 flex items-start gap-4">
+				<img id="lyrics-artwork" class="hidden h-20 w-20 rounded-lg object-cover" alt="" />
+				<div><h1 id="lyrics-title" class="m-0 text-[30px] font-bold leading-none tracking-[-0.04em]"></h1><p id="lyrics-artist" class="mt-2 text-[13px] text-[#8a908d]"></p></div>
+			</div>
+			<p id="lyrics-status" class="text-sm text-[#8a908d]" aria-live="polite">Loading lyrics…</p>
+			<div id="lyrics-body" class="whitespace-pre-wrap text-[18px] leading-[2.05] text-[#e2e5e3]"></div>
+		</section>
+	</main>
+</Layout>
+
+<script>
+	import { clearAccessToken, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../../lib/supabase';
+	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
+	const slug = window.location.pathname.split('/').filter(Boolean).pop() ?? '';
+	const stored = sessionStorage.getItem(`kotoba.song.${slug}`);
+	const song: SearchSong = stored ? JSON.parse(stored) : { geniusId: 0, title: slug.replaceAll('-', ' '), artist: '', artworkUrl: null, geniusUrl: '' };
+	const title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), body = document.querySelector<HTMLElement>('#lyrics-body'), status = document.querySelector<HTMLElement>('#lyrics-status'), artwork = document.querySelector<HTMLImageElement>('#lyrics-artwork');
+	if (title) title.textContent = song.title;
+	if (artist) artist.textContent = song.artist;
+	if (artwork && song.artworkUrl) { artwork.src = song.artworkUrl; artwork.classList.remove('hidden'); }
+	function renderLyrics(lyrics: string) {
+		if (!body) return;
+		const parsed = new DOMParser().parseFromString(lyrics, 'text/html');
+		parsed.body.querySelectorAll('*').forEach((element) => {
+			if (element.tagName !== 'P' && element.tagName !== 'BR') element.replaceWith(...element.childNodes);
+			else [...element.attributes].forEach(({ name }) => element.removeAttribute(name));
+		});
+		body.replaceChildren(...parsed.body.childNodes);
+	}
+
+	async function loadLyrics() {
+		const token = localStorage.getItem('kotoba.access_token');
+		if (!supabaseUrl || !supabaseAnonKey || !token) return window.location.assign('/');
+		const response = await fetch(`${supabaseUrl}/functions/v1/genius`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'song', song }) });
+		if (response.status === 401) { clearAccessToken(); return window.location.assign('/'); }
+		if (!response.ok) throw new Error('Lyrics request failed');
+		const { song: loadedSong } = await response.json();
+		if (title) title.textContent = loadedSong.title;
+		if (artist) artist.textContent = loadedSong.artist;
+		renderLyrics(loadedSong.lyrics);
+		if (status) status.remove();
+	}
+	if (!hasAccessToken()) window.location.assign('/'); else loadLyrics().catch(() => { if (status) status.textContent = 'Could not load lyrics. Return to search and try another song.'; });
+</script>

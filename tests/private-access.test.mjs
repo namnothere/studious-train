@@ -23,7 +23,6 @@ test('private access page contains the production authorization contract', async
   assert.match(protectedPage, /hasAccessToken/);
   assert.match(protectedPage, /response\.status === 401/);
   assert.match(protectedPage, /clearAccessToken/);
-  assert.match(protectedPage, /row\.querySelector\('\.spinner'\)\?\.classList\.add\('hidden'\)/);
   assert.match(protectedPage, /geniusId/);
   assert.doesNotMatch(protectedPage, /from\('songs'\)/);
   assert.match(geniusFunction, /GENIUS_ACCESS_TOKEN/);
@@ -35,4 +34,20 @@ test('private access page contains the production authorization contract', async
   assert.match(geniusFunction, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(geniusFunction, /isAuthorized/);
   assert.doesNotMatch(protectedPage, /GENIUS_ACCESS_TOKEN/);
+});
+
+test('song cards navigate to the standalone lyrics route', async () => {
+  const songsPage = await readFile(new URL('../src/pages/songs.astro', import.meta.url), 'utf8');
+  const lyricsPage = await readFile(new URL('../src/pages/songs/[slug].astro', import.meta.url), 'utf8');
+
+  assert.match(songsPage, /return `\/songs\/\$\{slug\}`/);
+  assert.match(songsPage, /cursor:pointer/);
+  assert.match(lyricsPage, /action: 'song'/);
+});
+
+test('lyrics route renders stored lyric HTML', async () => {
+  const lyricsPage = await readFile(new URL('../src/pages/songs/[slug].astro', import.meta.url), 'utf8');
+
+  assert.match(lyricsPage, /renderLyrics\(loadedSong\.lyrics\)/);
+  assert.doesNotMatch(lyricsPage, /body\.textContent = loadedSong\.lyrics/);
 });

@@ -14,13 +14,14 @@ import Layout from '../layouts/Layout.astro';
 				<div id="recent-songs"></div>
 			</section>
 		</section>
-		<section id="lyrics-view" class="hidden" aria-labelledby="lyrics-title"><div class="mb-8 flex items-start justify-between gap-4"><div class="flex items-start gap-4"><img id="lyrics-artwork" class="hidden h-20 w-20 rounded-lg object-cover" alt="" /><div><h1 id="lyrics-title" class="m-0 text-[30px] font-bold leading-none tracking-[-0.04em]"></h1><p id="lyrics-artist" class="mt-2 text-[13px] text-[#8a908d]"></p></div></div><button id="back-button" type="button" class="rounded-lg bg-[#16191a] px-3 py-2 text-xs text-[#d6dbd8] transition hover:bg-[#1c2021]">Search another song</button></div><div id="lyrics-body" class="whitespace-pre-wrap text-[18px] leading-[2.05] text-[#e2e5e3]"></div></section>
 	</main>
 </Layout>
 
 <style>
 	:global(#recent-songs) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-	:global(#recent-songs .recent-song) { min-width:0; text-align:left; }
+	:global(#recent-songs .recent-song) { min-width:0; text-align:left; cursor:pointer; transition:transform 160ms ease, border-color 160ms ease, background 160ms ease; }
+	:global(#recent-songs .recent-song:hover) { transform:translateY(-2px); border-color:#3c4741; background:linear-gradient(145deg,#202722,#121615); }
+	:global(#recent-songs .recent-song:focus-visible) { outline:2px solid #d7ff72; outline-offset:3px; }
 	:global(#recent-songs .recent-art) { display:block; width:100%; height:auto; object-fit:cover; }
 	:global(#recent-songs .recent-song) { display:flex; align-items:center; gap:12px; min-height:80px; padding:12px; border:1px solid #242829; border-radius:12px; background:linear-gradient(145deg,#1a1e1c,#101212); }
 	:global(#recent-songs .recent-art) { width:56px; height:56px; border-radius:8px; }
@@ -30,8 +31,7 @@ import Layout from '../layouts/Layout.astro';
 <script>
   import { clearAccessToken, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
 	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
-	type CachedSong = SearchSong & { lyrics: string };
-	const searchView = document.querySelector<HTMLElement>('#search-view'), lyricsView = document.querySelector<HTMLElement>('#lyrics-view'), form = document.querySelector<HTMLFormElement>('#search-form'), input = document.querySelector<HTMLInputElement>('#search-input'), status = document.querySelector<HTMLElement>('#search-status'), results = document.querySelector<HTMLElement>('#results'), title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), lyricsBody = document.querySelector<HTMLElement>('#lyrics-body'), lyricsArtwork = document.querySelector<HTMLImageElement>('#lyrics-artwork');
+	const form = document.querySelector<HTMLFormElement>('#search-form'), input = document.querySelector<HTMLInputElement>('#search-input'), status = document.querySelector<HTMLElement>('#search-status'), results = document.querySelector<HTMLElement>('#results');
 	const recent = document.querySelector<HTMLElement>('#recent-songs'), recentSection = document.querySelector<HTMLElement>('#recent-section');
 
 	async function genius(body: object) {
@@ -43,28 +43,16 @@ import Layout from '../layouts/Layout.astro';
 		return response.json();
 	}
 
-	function showLyrics(song: CachedSong) {
-		if (!title || !artist || !lyricsBody || !searchView || !lyricsView) return;
-		title.textContent = song.title; artist.textContent = song.artist; lyricsBody.textContent = song.lyrics; if (lyricsArtwork) { lyricsArtwork.classList.toggle('hidden', !song.artworkUrl); lyricsArtwork.src = song.artworkUrl ?? ''; } searchView.classList.add('hidden'); lyricsView.classList.remove('hidden');
-	}
-
-	async function selectSong(song: SearchSong, row: HTMLButtonElement) {
-		row.disabled = true; row.querySelector('.spinner')?.classList.remove('hidden');
-		try {
-			const selected = await genius({ action: 'song', song });
-			row.disabled = false; row.querySelector('.spinner')?.classList.add('hidden');
-			showLyrics(selected.song);
-		} catch { if (status) status.textContent = 'Could not load that song. Try another result.'; row.disabled = false; row.querySelector('.spinner')?.classList.add('hidden'); }
-	}
+	function songUrl(song: SearchSong) { const slug = song.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); sessionStorage.setItem(`kotoba.song.${slug}`, JSON.stringify(song)); return `/songs/${slug}`; }
 
 	function renderSongs(songs: SearchSong[]) {
 		if (!results) return;
 		results.replaceChildren(...songs.map((song) => {
 			const row = document.createElement('button'); row.type = 'button'; row.className = 'song-row group flex w-full items-center gap-3 border-0 border-b border-white/[0.03] bg-transparent py-3 text-left transition hover:bg-white/[0.025]';
-			row.innerHTML = '<img class="song-art h-11 w-11 shrink-0 rounded-md object-cover" alt=""><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold"></div><div class="mt-0.5 truncate text-xs text-[#8a908d]"></div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>';
+			row.innerHTML = '<img class="song-art h-11 w-11 shrink-0 rounded-md object-cover" alt=""><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold"></div><div class="mt-0.5 truncate text-xs text-[#8a908d]"></div></div>';
 			const labels = row.querySelectorAll('div div'); labels[0].textContent = song.title; labels[1].textContent = song.artist;
 			if (song.artworkUrl) row.querySelector<HTMLImageElement>('.song-art')!.src = song.artworkUrl;
-			row.addEventListener('click', () => selectSong(song, row)); return row;
+			row.addEventListener('click', () => window.location.assign(songUrl(song))); return row;
 		}));
 	}
 
@@ -74,7 +62,7 @@ import Layout from '../layouts/Layout.astro';
 			const item = document.createElement('button'); item.type = 'button'; item.className = 'recent-song group w-full text-left transition hover:bg-white/[0.04] p-2';
 			item.innerHTML = `<img class="recent-art rounded-lg bg-gradient-to-br from-[#65705e] via-[#303b35] to-[#151918] object-cover" alt=""><div class="min-w-0"><div class="truncate text-sm font-semibold">${song.title}</div><div class="mt-1 truncate text-xs text-[#8a908d]">${song.artist}</div></div>`;
 			if (song.artworkUrl) item.querySelector<HTMLImageElement>('.recent-art')!.src = song.artworkUrl;
-			item.addEventListener('click', () => selectSong(song, item)); return item;
+			item.addEventListener('click', () => window.location.assign(songUrl(song))); return item;
 		}));
 		if (recentSection) recentSection.hidden = !recentSongs.length;
 	}
@@ -84,6 +72,5 @@ import Layout from '../layouts/Layout.astro';
 		event.preventDefault(); const query = input?.value.trim(); if (!query || !status) return; status.textContent = 'Searching…'; results?.replaceChildren();
 		try { const { songs } = await genius({ action: 'search', query }); renderSongs(songs); status.textContent = songs.length ? '' : 'No usable songs found.'; } catch { status.textContent = 'Search failed. Try again.'; }
 	});
-	document.querySelector('#back-button')?.addEventListener('click', () => { lyricsView?.classList.add('hidden'); searchView?.classList.remove('hidden'); });
 	if (!hasAccessToken()) window.location.assign('/');
 </script>
