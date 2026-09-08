@@ -27,9 +27,10 @@ Deno.serve(async (request) => {
     }
     if (body.action === 'song' && body.song && Number.isInteger(body.song.geniusId)) {
       const cached = await supabaseRequest(`/rest/v1/songs?genius_id=eq.${body.song.geniusId}&select=*`);
-      if (cached[0]) return json({ song: { ...body.song, lyrics: cached[0].lyrics } });
+      if (cached[0]) return json({ song: { geniusId: cached[0].genius_id, title: cached[0].title, artist: cached[0].artist, artworkUrl: cached[0].artwork_url, geniusUrl: cached[0].genius_url, lyrics: cached[0].lyrics } });
+      if (typeof body.song.title !== 'string' || typeof body.song.artist !== 'string') return json({ error: 'Song metadata required' }, 400);
       const response = await geniusRequest(`/song/lyrics/?id=${body.song.geniusId}/`, accessToken);
-      const lyrics = response.response?.lyrics?.lyrics?.body?.plain ?? response.lyrics?.lyrics?.body?.plain ?? null;
+      const lyrics = response.lyrics?.lyrics?.body?.html ?? null;
       if (typeof lyrics !== 'string' || !lyrics.trim()) return json({ error: 'Lyrics unavailable' }, 404);
       const inserted = await supabaseRequest('/rest/v1/songs', {
         method: 'POST', headers: { Prefer: 'return=representation' },
