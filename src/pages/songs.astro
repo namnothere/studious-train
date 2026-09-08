@@ -3,15 +3,69 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Kotoba">
-	<main class="flex min-h-screen items-center justify-center px-6">
-		<p id="protected-content" class="text-sm text-[#8a908d]">Loading private library…</p>
+	<header class="fixed inset-x-0 top-0 z-20 flex h-14 items-center bg-[#0d0f10]/90 px-6 backdrop-blur"><div class="text-[13px] font-extrabold tracking-[0.08em]">kotoba</div></header>
+	<main class="mx-auto min-h-screen max-w-4xl px-6 pb-24 pt-20">
+		<section id="search-view" aria-labelledby="search-title">
+			<h1 id="search-title" class="sr-only">Search songs</h1>
+			<form id="search-form" class="mb-8"><label class="sr-only" for="search-input">Search songs or artists</label><input id="search-input" type="search" autocomplete="off" placeholder="Search songs or artists" class="w-full border-0 border-b border-[#242829] bg-transparent px-0 py-4 text-[22px] tracking-[-0.02em] text-[#f3f4f1] outline-none placeholder:text-[#5f6663] focus:border-[#4b5350] focus:ring-0" /></form>
+			<p id="search-status" class="text-sm text-[#8a908d]" aria-live="polite">Search for a song or artist.</p><div id="results" class="space-y-0" aria-live="polite"></div>
+		</section>
+		<section id="lyrics-view" class="hidden" aria-labelledby="lyrics-title"><div class="mb-8 flex items-start justify-between gap-4"><div><h1 id="lyrics-title" class="m-0 text-[30px] font-bold leading-none tracking-[-0.04em]"></h1><p id="lyrics-artist" class="mt-2 text-[13px] text-[#8a908d]"></p></div><button id="back-button" type="button" class="rounded-lg bg-[#16191a] px-3 py-2 text-xs text-[#d6dbd8] transition hover:bg-[#1c2021]">Search another song</button></div><div id="lyrics-body" class="whitespace-pre-wrap text-[18px] leading-[2.05] text-[#e2e5e3]"></div></section>
 	</main>
 </Layout>
 
 <script>
-	import { hasAccessToken } from '../lib/supabase';
-	const content = document.querySelector<HTMLElement>('#protected-content');
+	import { getSupabaseClient, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
+	type CachedSong = SearchSong & { lyrics: string };
+	const searchView = document.querySelector<HTMLElement>('#search-view'), lyricsView = document.querySelector<HTMLElement>('#lyrics-view'), form = document.querySelector<HTMLFormElement>('#search-form'), input = document.querySelector<HTMLInputElement>('#search-input'), status = document.querySelector<HTMLElement>('#search-status'), results = document.querySelector<HTMLElement>('#results'), title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), lyricsBody = document.querySelector<HTMLElement>('#lyrics-body');
 
+	async function genius(body: object) {
+		const token = localStorage.getItem('kotoba.access_token');
+		if (!supabaseUrl || !supabaseAnonKey || !token) throw new Error('Not authorized');
+		const response = await fetch(`${supabaseUrl}/functions/v1/genius`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		if (!response.ok) throw new Error('Genius request failed');
+		return response.json();
+	}
+
+	function showLyrics(song: CachedSong) {
+		if (!title || !artist || !lyricsBody || !searchView || !lyricsView) return;
+		title.textContent = song.title; artist.textContent = song.artist; lyricsBody.textContent = song.lyrics; searchView.classList.add('hidden'); lyricsView.classList.remove('hidden');
+	}
+
+	async function selectSong(song: SearchSong, row: HTMLButtonElement) {
+		row.disabled = true; row.querySelector('.spinner')?.classList.remove('hidden');
+		try {
+			const client = getSupabaseClient();
+			const { data: cached, error } = await client.from('songs').select('*').eq('genius_id', song.geniusId).maybeSingle();
+			if (error) throw error;
+			if (cached) return showLyrics({ ...song, lyrics: cached.lyrics });
+			const { lyrics } = await genius({ action: 'lyrics', geniusId: song.geniusId });
+			if (typeof lyrics !== 'string' || !lyrics.trim()) throw new Error('Lyrics unavailable');
+			const { data: inserted, error: insertError } = await client.from('songs').insert({ genius_id: song.geniusId, title: song.title, artist: song.artist, artwork_url: song.artworkUrl, genius_url: song.geniusUrl, lyrics }).select('*').single();
+			if (!insertError) return showLyrics({ ...song, lyrics: inserted.lyrics });
+			if (insertError.code !== '23505') throw insertError;
+			const { data: raced, error: rereadError } = await client.from('songs').select('*').eq('genius_id', song.geniusId).single();
+			if (rereadError) throw rereadError;
+			showLyrics({ ...song, lyrics: raced.lyrics });
+		} catch { if (status) status.textContent = 'Could not load that song. Try another result.'; row.disabled = false; row.querySelector('.spinner')?.classList.add('hidden'); }
+	}
+
+	function renderSongs(songs: SearchSong[]) {
+		if (!results) return;
+		results.replaceChildren(...songs.map((song) => {
+			const row = document.createElement('button'); row.type = 'button'; row.className = 'song-row group flex w-full items-center gap-3 border-0 border-b border-white/[0.03] bg-transparent py-3 text-left transition hover:bg-white/[0.025]';
+			row.innerHTML = '<div class="h-11 w-11 shrink-0 rounded-md bg-gradient-to-br from-[#353b39] to-[#1b201f]"></div><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold"></div><div class="mt-0.5 truncate text-xs text-[#8a908d]"></div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>';
+			const labels = row.querySelectorAll('div div'); labels[0].textContent = song.title; labels[1].textContent = song.artist;
+			if (song.artworkUrl) row.querySelector<HTMLElement>(':scope > div')!.style.backgroundImage = `url(${JSON.stringify(song.artworkUrl)})`;
+			row.addEventListener('click', () => selectSong(song, row)); return row;
+		}));
+	}
+
+	form?.addEventListener('submit', async (event) => {
+		event.preventDefault(); const query = input?.value.trim(); if (!query || !status) return; status.textContent = 'Searching…'; results?.replaceChildren();
+		try { const { songs } = await genius({ action: 'search', query }); renderSongs(songs); status.textContent = songs.length ? '' : 'No usable songs found.'; } catch { status.textContent = 'Search failed. Try again.'; }
+	});
+	document.querySelector('#back-button')?.addEventListener('click', () => { lyricsView?.classList.add('hidden'); searchView?.classList.remove('hidden'); });
 	if (!hasAccessToken()) window.location.assign('/');
-	else if (content) content.textContent = 'Your private library is ready.';
 </script>
