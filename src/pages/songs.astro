@@ -38,6 +38,7 @@ import Layout from '../layouts/Layout.astro';
 		row.disabled = true; row.querySelector('.spinner')?.classList.remove('hidden');
 		try {
 			const selected = await genius({ action: 'song', song });
+			row.disabled = false; row.querySelector('.spinner')?.classList.add('hidden');
 			showLyrics(selected.song);
 		} catch { if (status) status.textContent = 'Could not load that song. Try another result.'; row.disabled = false; row.querySelector('.spinner')?.classList.add('hidden'); }
 	}

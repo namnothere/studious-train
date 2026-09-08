@@ -23,6 +23,7 @@ test('private access page contains the production authorization contract', async
   assert.match(protectedPage, /hasAccessToken/);
   assert.match(protectedPage, /response\.status === 401/);
   assert.match(protectedPage, /clearAccessToken/);
+  assert.match(protectedPage, /row\.querySelector\('\.spinner'\)\?\.classList\.add\('hidden'\)/);
   assert.match(protectedPage, /geniusId/);
   assert.doesNotMatch(protectedPage, /from\('songs'\)/);
   assert.match(geniusFunction, /GENIUS_ACCESS_TOKEN/);
