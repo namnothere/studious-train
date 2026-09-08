@@ -10,7 +10,7 @@ create table public.songs (
 );
 
 create table public.vocabulary (
-  id bigint generated always as identity primary key,
+  id uuid primary key default gen_random_uuid(),
   word text not null unique,
   last_seen timestamptz,
   created_at timestamptz not null default now()
