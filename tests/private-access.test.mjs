@@ -15,5 +15,8 @@ test('private access page contains the production authorization contract', async
 	assert.match(page, /\/functions\/v1\/authorize/);
 	assert.match(page, /Access denied\./);
 	assert.match(functionCode, /401/);
-	assert.match(protectedPage, /getSession/);
+	assert.match(functionCode, /ACCESS_PASSWORD_HASH/);
+	assert.match(functionCode, /SUPABASE_JWT_SECRET/);
+	assert.doesNotMatch(functionCode, /AUTH_EMAIL|AUTH_PASSWORD/);
+	assert.match(protectedPage, /hasAccessToken/);
 });

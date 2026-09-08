@@ -24,7 +24,7 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { getSupabaseClient, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+	import { saveAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
 	const form = document.querySelector<HTMLFormElement>('#unlock-form');
 	const input = document.querySelector<HTMLInputElement>('#credential');
 	const button = document.querySelector<HTMLButtonElement>('#unlock-button');
@@ -38,13 +38,12 @@ import Layout from '../layouts/Layout.astro';
 		error.classList.add('hidden');
 		content.textContent = 'Unlocking…';
 		try {
-			const supabase = getSupabaseClient();
 			if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase public configuration is missing.');
 			const response = await fetch(`${supabaseUrl}/functions/v1/authorize`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: supabaseAnonKey }, body: JSON.stringify({ credential: input.value }) });
 			if (!response.ok) throw new Error('Unauthorized');
-			const { session } = await response.json();
-			const { error: sessionError } = await supabase.auth.setSession(session);
-			if (sessionError) throw sessionError;
+			const { access_token: accessToken } = await response.json();
+			if (!accessToken) throw new Error('Authorization token missing');
+			saveAccessToken(accessToken);
 			window.location.assign('/songs');
 		} catch {
 			error.classList.remove('hidden');
