@@ -25,7 +25,7 @@ Deno.serve(async (request) => {
       const cached = await supabaseRequest(`/rest/v1/songs?genius_id=eq.${body.song.geniusId}&select=*`);
       if (cached[0]) return json({ song: { ...body.song, lyrics: cached[0].lyrics } });
       const response = await geniusRequest(`/song/lyrics/?id=${body.song.geniusId}/`, accessToken);
-      const lyrics = response.response?.lyrics?.lyrics?.body?.plain ?? null;
+      const lyrics = response.response?.lyrics?.lyrics?.body?.plain ?? response.lyrics?.lyrics?.body?.plain ?? null;
       if (typeof lyrics !== 'string' || !lyrics.trim()) return json({ error: 'Lyrics unavailable' }, 404);
       const inserted = await supabaseRequest('/rest/v1/songs', {
         method: 'POST', headers: { Prefer: 'return=representation' },
