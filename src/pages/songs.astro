@@ -15,7 +15,7 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { getSupabaseClient, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+	import { hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
 	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
 	type CachedSong = SearchSong & { lyrics: string };
 	const searchView = document.querySelector<HTMLElement>('#search-view'), lyricsView = document.querySelector<HTMLElement>('#lyrics-view'), form = document.querySelector<HTMLFormElement>('#search-form'), input = document.querySelector<HTMLInputElement>('#search-input'), status = document.querySelector<HTMLElement>('#search-status'), results = document.querySelector<HTMLElement>('#results'), title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), lyricsBody = document.querySelector<HTMLElement>('#lyrics-body');
@@ -36,18 +36,8 @@ import Layout from '../layouts/Layout.astro';
 	async function selectSong(song: SearchSong, row: HTMLButtonElement) {
 		row.disabled = true; row.querySelector('.spinner')?.classList.remove('hidden');
 		try {
-			const client = getSupabaseClient();
-			const { data: cached, error } = await client.from('songs').select('*').eq('genius_id', song.geniusId).maybeSingle();
-			if (error) throw error;
-			if (cached) return showLyrics({ ...song, lyrics: cached.lyrics });
-			const { lyrics } = await genius({ action: 'lyrics', geniusId: song.geniusId });
-			if (typeof lyrics !== 'string' || !lyrics.trim()) throw new Error('Lyrics unavailable');
-			const { data: inserted, error: insertError } = await client.from('songs').insert({ genius_id: song.geniusId, title: song.title, artist: song.artist, artwork_url: song.artworkUrl, genius_url: song.geniusUrl, lyrics }).select('*').single();
-			if (!insertError) return showLyrics({ ...song, lyrics: inserted.lyrics });
-			if (insertError.code !== '23505') throw insertError;
-			const { data: raced, error: rereadError } = await client.from('songs').select('*').eq('genius_id', song.geniusId).single();
-			if (rereadError) throw rereadError;
-			showLyrics({ ...song, lyrics: raced.lyrics });
+			const selected = await genius({ action: 'song', song });
+			showLyrics(selected.song);
 		} catch { if (status) status.textContent = 'Could not load that song. Try another result.'; row.disabled = false; row.querySelector('.spinner')?.classList.add('hidden'); }
 	}
 

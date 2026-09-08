@@ -21,9 +21,11 @@ test('private access page contains the production authorization contract', async
   assert.doesNotMatch(functionCode, /AUTH_EMAIL|AUTH_PASSWORD/);
   assert.match(protectedPage, /hasAccessToken/);
   assert.match(protectedPage, /geniusId/);
-  assert.match(protectedPage, /23505/);
+  assert.doesNotMatch(protectedPage, /from\('songs'\)/);
   assert.match(geniusFunction, /GENIUS_ACCESS_TOKEN/);
   assert.match(geniusFunction, /lyrics\?\.lyrics\?\.body\?\.plain/);
   assert.match(geniusFunction, /instrumental/);
+  assert.match(geniusFunction, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(geniusFunction, /isAuthorized/);
   assert.doesNotMatch(protectedPage, /GENIUS_ACCESS_TOKEN/);
 });
