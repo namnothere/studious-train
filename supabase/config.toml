@@ -1,0 +1,2 @@
+[functions.genius]
+verify_jwt = false
