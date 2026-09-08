@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" class="bg-[#0d0f10]">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Issue #4 Prototype — Search-first</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-[#0d0f10] text-[#f3f4f1] antialiased">
+  <header class="sticky top-0 z-20 flex h-14 items-center px-6 bg-[#0d0f10]/90 backdrop-blur">
+    <div class="text-[13px] font-extrabold tracking-[0.08em]">kotoba</div>
+  </header>
+  <main class="mx-auto max-w-4xl px-6 pb-24 pt-5">
+    <section id="search-view">
+      <div class="mb-8">
+        <input id="search-input" type="text" value="yorushika"
+          class="w-full border-0 border-b border-[#242829] bg-transparent px-0 py-4 text-[22px] tracking-[-0.02em] text-[#f3f4f1] outline-none placeholder:text-[#5f6663] focus:border-[#4b5350] focus:ring-0"
+          placeholder="Search songs or artists" />
+      </div>
+      <div id="results" class="space-y-0">
+        <button data-cached="true" data-song="ただ君に晴れ" data-artist="ヨルシカ" class="song-row group flex w-full items-center gap-3 border-0 border-b border-white/[0.03] bg-transparent py-3 text-left transition hover:bg-white/[0.025]">
+          <div class="h-11 w-11 shrink-0 rounded-md bg-gradient-to-br from-[#353b39] to-[#1b201f]"></div><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold">ただ君に晴れ</div><div class="mt-0.5 truncate text-xs text-[#8a908d]">ヨルシカ</div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>
+        </button>
+        <button data-cached="false" data-song="花に亡霊" data-artist="ヨルシカ" class="song-row group flex w-full items-center gap-3 border-0 border-b border-white/[0.03] bg-transparent py-3 text-left transition hover:bg-white/[0.025]">
+          <div class="h-11 w-11 shrink-0 rounded-md bg-gradient-to-br from-[#3b3735] to-[#20201f]"></div><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold">花に亡霊</div><div class="mt-0.5 truncate text-xs text-[#8a908d]">ヨルシカ</div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>
+        </button>
+        <button data-cached="false" data-song="言って。" data-artist="ヨルシカ" class="song-row group flex w-full items-center gap-3 border-0 border-b border-white/[0.03] bg-transparent py-3 text-left transition hover:bg-white/[0.025]">
+          <div class="h-11 w-11 shrink-0 rounded-md bg-gradient-to-br from-[#34383b] to-[#1e2123]"></div><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold">言って。</div><div class="mt-0.5 truncate text-xs text-[#8a908d]">ヨルシカ</div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>
+        </button>
+        <button data-cached="true" data-song="春を告げる" data-artist="yama" class="song-row group flex w-full items-center gap-3 border-0 border-b border-white/[0.03] bg-transparent py-3 text-left transition hover:bg-white/[0.025]">
+          <div class="h-11 w-11 shrink-0 rounded-md bg-gradient-to-br from-[#373b39] to-[#202321]"></div><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold">春を告げる</div><div class="mt-0.5 truncate text-xs text-[#8a908d]">yama</div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>
+        </button>
+        <button data-cached="false" data-song="パレード" data-artist="ヨルシカ" class="song-row group flex w-full items-center gap-3 bg-transparent py-3 text-left transition hover:bg-white/[0.025]">
+          <div class="h-11 w-11 shrink-0 rounded-md bg-gradient-to-br from-[#393733] to-[#211f1d]"></div><div class="min-w-0 flex-1"><div class="truncate text-sm font-semibold">パレード</div><div class="mt-0.5 truncate text-xs text-[#8a908d]">ヨルシカ</div></div><div class="spinner hidden h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4b5350] border-t-[#d7ff72]"></div>
+        </button>
+      </div>
+    </section>
+    <section id="lyrics-view" class="hidden">
+      <div class="max-w-3xl">
+        <div class="mb-8 flex items-start justify-between gap-4"><div><h1 id="lyrics-title" class="m-0 text-[30px] font-bold leading-none tracking-[-0.04em]">ただ君に晴れ</h1><p id="lyrics-artist" class="mt-2 text-[13px] text-[#8a908d]">ヨルシカ</p></div><button id="back-button" class="rounded-lg bg-[#16191a] px-3 py-2 text-xs text-[#d6dbd8] transition hover:bg-[#1c2021]">Search another song</button></div>
+        <div class="whitespace-pre-wrap text-[18px] leading-[2.05] text-[#e2e5e3]">[Verse 1]
+
+夜に浮かんでいた
+海月のような月が爆ぜた
+
+バス停の背を覗けば
+あの夏の君が頭にいる
+
+だけ</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const searchView=document.getElementById('search-view'),lyricsView=document.getElementById('lyrics-view'),title=document.getElementById('lyrics-title'),artist=document.getElementById('lyrics-artist');
+    document.querySelectorAll('.song-row').forEach(row=>row.addEventListener('click',()=>{if(row.disabled)return;const open=()=>{title.textContent=row.dataset.song;artist.textContent=row.dataset.artist;searchView.classList.add('hidden');lyricsView.classList.remove('hidden')};if(row.dataset.cached==='true'){open();return}row.disabled=true;row.querySelector('.spinner').classList.remove('hidden');setTimeout(()=>{row.querySelector('.spinner').classList.add('hidden');row.disabled=false;open()},900)}));
+    document.getElementById('back-button').addEventListener('click',()=>{lyricsView.classList.add('hidden');searchView.classList.remove('hidden')});
+  </script>
+</body>
+</html>
