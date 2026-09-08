@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Kotoba">
+	<main class="flex min-h-screen items-center justify-center px-6">
+		<p id="protected-content" class="text-sm text-[#8a908d]">Loading private library…</p>
+	</main>
+</Layout>
+
+<script>
+	import { hasAccessToken } from '../lib/supabase';
+	const content = document.querySelector<HTMLElement>('#protected-content');
+
+	if (!hasAccessToken()) window.location.assign('/');
+	else if (content) content.textContent = 'Your private library is ready.';
+</script>
