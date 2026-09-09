@@ -47,11 +47,15 @@ test('song cards navigate to the standalone lyrics route', async () => {
 
 test('lyrics route renders stored lyric text safely', async () => {
   const lyricsPage = await readFile(new URL('../src/pages/songs/[slug].astro', import.meta.url), 'utf8');
+  const geniusFunction = await readFile(new URL('../supabase/functions/genius/index.ts', import.meta.url), 'utf8');
 
   assert.match(lyricsPage, /lyrics = loadedSong\.lyrics/);
   assert.match(lyricsPage, /renderLyrics\(lyrics\)/);
-  assert.match(lyricsPage, /getSupabaseClient/);
+  assert.doesNotMatch(lyricsPage, /getSupabaseClient|from\('vocabulary'\)/);
   assert.match(lyricsPage, /selectionchange/);
-  assert.match(lyricsPage, /upsert/);
+  assert.match(lyricsPage, /action: 'vocabulary'/);
+  assert.match(geniusFunction, /operation === 'list'/);
+  assert.match(geniusFunction, /operation === 'learn'/);
+  assert.match(geniusFunction, /operation === 'seen'/);
   assert.doesNotMatch(lyricsPage, /DOMParser/);
 });

@@ -21,7 +21,7 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { clearAccessToken, getSupabaseClient, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../../lib/supabase';
+	import { clearAccessToken, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../../lib/supabase';
 	import { highlightSegments } from '../../lib/lyrics.mjs';
 	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
 	const slug = window.location.pathname.split('/').filter(Boolean).pop() ?? '';
@@ -53,6 +53,15 @@ import Layout from '../../layouts/Layout.astro';
 		if (learnAction) learnAction.hidden = true;
 	}
 
+	async function vocabularyRequest(body: object) {
+		const token = localStorage.getItem('kotoba.access_token');
+		if (!supabaseUrl || !supabaseAnonKey || !token) throw new Error('Not authorized');
+		const response = await fetch(`${supabaseUrl}/functions/v1/genius`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		if (response.status === 401) { clearAccessToken(); window.location.assign('/'); throw new Error('Not authorized'); }
+		if (!response.ok) throw new Error('Vocabulary request failed');
+		return response.json();
+	}
+
 	document.addEventListener('selectionchange', () => {
 		if (!body || !learnAction) return;
 		const selection = window.getSelection();
@@ -70,14 +79,12 @@ import Layout from '../../layouts/Layout.astro';
 	async function markSeen() {
 		const encountered = [...learned].filter((word) => lyrics.includes(word));
 		if (!encountered.length) return;
-		const { error } = await getSupabaseClient().from('vocabulary').update({ last_seen: new Date().toISOString() }).in('word', encountered);
-		if (error) throw error;
+		await vocabularyRequest({ action: 'vocabulary', operation: 'seen', words: encountered });
 	}
 
 	async function loadVocabulary() {
-		const { data, error } = await getSupabaseClient().from('vocabulary').select('word');
-		if (error) throw error;
-		for (const entry of data ?? []) if (typeof entry.word === 'string') learned.add(entry.word);
+		const { vocabulary } = await vocabularyRequest({ action: 'vocabulary', operation: 'list' });
+		for (const entry of vocabulary ?? []) if (typeof entry.word === 'string') learned.add(entry.word);
 	}
 
 	learnAction?.addEventListener('click', async () => {
@@ -85,9 +92,8 @@ import Layout from '../../layouts/Layout.astro';
 		if (!word) return;
 		learnAction.disabled = true;
 		try {
-			const { data, error } = await getSupabaseClient().from('vocabulary').upsert({ word }, { onConflict: 'word' }).select('word').single();
-			if (error) throw error;
-			learned.add(data.word);
+			const { vocabulary } = await vocabularyRequest({ action: 'vocabulary', operation: 'learn', word });
+			learned.add(vocabulary.word);
 			renderLyrics(lyrics);
 			await markSeen();
 		} catch {
