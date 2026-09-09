@@ -32,6 +32,8 @@ import Layout from '../../layouts/Layout.astro';
 	const song: SearchSong = stored ? JSON.parse(stored) : { geniusId: 0, title: slug.replaceAll('-', ' '), artist: '', artworkUrl: null, geniusUrl: '' };
 	const title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), body = document.querySelector<HTMLElement>('#lyrics-body'), status = document.querySelector<HTMLElement>('#lyrics-status'), artwork = document.querySelector<HTMLImageElement>('#lyrics-artwork'), learnAction = document.querySelector<HTMLButtonElement>('#learn-action');
 	const learned = new Set<string>();
+	const seenOnPage = new Set<string>();
+	// Lyrics arrive as HTML; keep the markup and sanitize it in renderLyrics().
 	let lyrics = '';
 	let pendingSelection = '';
 	const allowedTags = new Set(['BR', 'P', 'DIV', 'SPAN', 'I', 'EM', 'B', 'STRONG']);
@@ -50,8 +52,7 @@ import Layout from '../../layouts/Layout.astro';
 			mark.dataset.learnedWords = words.join('\u0000');
 			return mark;
 		});
-		const source = /<[^>]+>/.test(lyrics) ? new DOMParser().parseFromString(lyrics, 'text/html').body : document.createElement('div');
-		if (!source.childNodes.length) source.textContent = lyrics;
+		const source = new DOMParser().parseFromString(lyrics, 'text/html').body;
 		const copy = (node: Node): Node => {
 			if (node.nodeType === Node.TEXT_NODE) {
 				const fragment = document.createDocumentFragment();
@@ -102,9 +103,10 @@ import Layout from '../../layouts/Layout.astro';
 	});
 
 	async function markSeen() {
-		const encountered = [...learned].filter((word) => lyrics.includes(word));
+		const encountered = [...learned].filter((word) => !seenOnPage.has(word) && lyrics.includes(word));
 		if (!encountered.length) return;
 		await vocabularyRequest({ operation: 'seen', words: encountered });
+		encountered.forEach((word) => seenOnPage.add(word));
 	}
 
 	async function loadVocabulary() {

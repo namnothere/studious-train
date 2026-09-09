@@ -61,4 +61,6 @@ test('lyrics route renders stored lyric text safely', async () => {
   assert.doesNotMatch(geniusFunction, /operation === 'list'|operation === 'learn'|operation === 'seen'/);
   assert.match(lyricsPage, /new DOMParser\(\)/);
   assert.match(lyricsPage, /allowedTags/);
+  assert.doesNotMatch(lyricsPage, /lyrics\.split\('\\n'\)/);
+  assert.match(lyricsPage, /createTextNode/);
 });
