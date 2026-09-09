@@ -30,7 +30,7 @@ test('private access page contains the production authorization contract', async
   assert.match(geniusFunction, /`\/search\/\?q=/);
   assert.match(geniusFunction, /`\/song\/lyrics\//);
   assert.match(geniusFunction, /response\.status/);
-  assert.match(geniusFunction, /response\.lyrics\?\.lyrics\?\.body\?\.plain/);
+  assert.match(geniusFunction, /response\.lyrics\?\.lyrics\?\.body\?\.html/);
   assert.match(geniusFunction, /instrumental/);
   assert.match(geniusFunction, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(geniusFunction, /isAuthorized/);
@@ -59,5 +59,6 @@ test('lyrics route renders stored lyric text safely', async () => {
   assert.match(lyricsPage, /selectionchange/);
   assert.match(lyricsPage, /functions\/v1\/vocabulary/);
   assert.doesNotMatch(geniusFunction, /operation === 'list'|operation === 'learn'|operation === 'seen'/);
-  assert.doesNotMatch(lyricsPage, /DOMParser/);
+  assert.match(lyricsPage, /new DOMParser\(\)/);
+  assert.match(lyricsPage, /allowedTags/);
 });

@@ -13,8 +13,11 @@ import Layout from '../../layouts/Layout.astro';
 				<img id="lyrics-artwork" class="hidden h-20 w-20 rounded-lg object-cover" alt="" />
 				<div><h1 id="lyrics-title" class="m-0 text-[30px] font-bold leading-none tracking-[-0.04em]"></h1><p id="lyrics-artist" class="mt-2 text-[13px] text-[#8a908d]"></p></div>
 			</div>
-			<p id="lyrics-status" class="text-sm text-[#8a908d]" aria-live="polite">Loading lyrics…</p>
-			<div id="lyrics-body" class="relative whitespace-pre-wrap text-[18px] leading-[2.05] text-[#e2e5e3]"></div>
+			<div id="lyrics-status" class="fixed inset-0 z-10 flex items-center justify-center" role="status" aria-live="polite">
+				<span class="size-8 animate-spin rounded-full border-2 border-[#8a908d]/30 border-t-[#d7ff72]" aria-hidden="true"></span>
+				<span class="sr-only">Loading lyrics…</span>
+			</div>
+			<div id="lyrics-body" class="relative text-[18px] leading-[2.05] text-[#e2e5e3]"></div>
 			<button id="learn-action" type="button" hidden class="fixed z-30 rounded-md bg-[#d7ff72] px-2.5 py-1.5 text-xs font-bold text-[#0d0f10] shadow-lg">Learn</button>
 		</section>
 	</main>
@@ -31,12 +34,13 @@ import Layout from '../../layouts/Layout.astro';
 	const learned = new Set<string>();
 	let lyrics = '';
 	let pendingSelection = '';
+	const allowedTags = new Set(['BR', 'P', 'DIV', 'SPAN', 'I', 'EM', 'B', 'STRONG']);
 	if (title) title.textContent = song.title;
 	if (artist) artist.textContent = song.artist;
 	if (artwork && song.artworkUrl) { artwork.src = song.artworkUrl; artwork.classList.remove('hidden'); }
 	function renderLyrics(lyrics: string) {
 		if (!body) return;
-		body.replaceChildren(...highlightSegments(lyrics, [...learned]).map(({ text, words }) => {
+		const renderText = (text: string) => highlightSegments(text, [...learned]).map(({ text, words }) => {
 			if (!words.length) return document.createTextNode(text);
 			const mark = document.createElement('mark');
 			mark.className = 'rounded-sm bg-[#d7ff72]/25 text-inherit';
@@ -45,7 +49,28 @@ import Layout from '../../layouts/Layout.astro';
 			if (words.length > 1) mark.style.background = 'linear-gradient(transparent 12%, #d7ff72 12% 52%, #8de1ff 52% 88%, transparent 88%)';
 			mark.dataset.learnedWords = words.join('\u0000');
 			return mark;
-		}));
+		});
+		const source = /<[^>]+>/.test(lyrics) ? new DOMParser().parseFromString(lyrics, 'text/html').body : document.createElement('div');
+		if (!source.childNodes.length) source.textContent = lyrics;
+		const copy = (node: Node): Node => {
+			if (node.nodeType === Node.TEXT_NODE) {
+				const fragment = document.createDocumentFragment();
+				fragment.append(...renderText(node.textContent ?? ''));
+				return fragment;
+			}
+			if (node.nodeType !== Node.ELEMENT_NODE) return document.createTextNode('');
+			const element = node as HTMLElement;
+			if (!allowedTags.has(element.tagName)) return ['SCRIPT', 'STYLE'].includes(element.tagName) ? document.createTextNode('') : document.createTextNode(element.textContent ?? '');
+			const clean = document.createElement(element.tagName.toLowerCase());
+			for (const child of element.childNodes) clean.append(copy(child));
+			return clean;
+		};
+		const safe = document.createElement('div');
+		for (const child of source.childNodes) {
+			if (child.nodeType === Node.TEXT_NODE) safe.append(...renderText(child.textContent ?? ''));
+			else safe.append(copy(child));
+		}
+		body.replaceChildren(...safe.childNodes);
 	}
 
 	function hideLearnAction() {
