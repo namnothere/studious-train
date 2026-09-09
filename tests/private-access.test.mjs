@@ -26,7 +26,7 @@ test('private access page contains the production authorization contract', async
   assert.match(protectedPage, /clearAccessToken/);
   assert.match(protectedPage, /geniusId/);
   assert.doesNotMatch(protectedPage, /from\('songs'\)/);
-  assert.match(geniusFunction, /GENIUS_ACCESS_TOKEN/);
+  assert.match(geniusFunction, /SONG_ACCESS_TOKEN/);
   assert.match(geniusFunction, /`\/search\/\?q=/);
   assert.match(geniusFunction, /`\/song\/lyrics\//);
   assert.match(geniusFunction, /response\.status/);
@@ -37,20 +37,20 @@ test('private access page contains the production authorization contract', async
   assert.match(vocabularyFunction, /operation === 'list'/);
   assert.match(vocabularyFunction, /operation === 'learn'/);
   assert.match(vocabularyFunction, /operation === 'seen'/);
-  assert.doesNotMatch(protectedPage, /GENIUS_ACCESS_TOKEN/);
+  assert.doesNotMatch(protectedPage, /SONG_ACCESS_TOKEN/);
 });
 
 test('song cards navigate to the standalone lyrics route', async () => {
   const songsPage = await readFile(new URL('../src/pages/songs.astro', import.meta.url), 'utf8');
-  const lyricsPage = await readFile(new URL('../src/pages/songs/[slug].astro', import.meta.url), 'utf8');
+  const lyricsPage = await readFile(new URL('../src/pages/song.astro', import.meta.url), 'utf8');
 
-  assert.match(songsPage, /return `\/songs\/\$\{slug\}`/);
+  assert.match(songsPage, /return `\$\{base\}song\?slug=/);
   assert.match(songsPage, /cursor:pointer/);
   assert.match(lyricsPage, /action: 'song'/);
 });
 
 test('lyrics route renders stored lyric text safely', async () => {
-  const lyricsPage = await readFile(new URL('../src/pages/songs/[slug].astro', import.meta.url), 'utf8');
+  const lyricsPage = await readFile(new URL('../src/pages/song.astro', import.meta.url), 'utf8');
   const geniusFunction = await readFile(new URL('../supabase/functions/genius/index.ts', import.meta.url), 'utf8');
 
   assert.match(lyricsPage, /lyrics = loadedSong\.lyrics/);

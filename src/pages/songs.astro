@@ -30,6 +30,7 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   import { clearAccessToken, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+	const base = import.meta.env.BASE_URL;
 	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
 	const form = document.querySelector<HTMLFormElement>('#search-form'), input = document.querySelector<HTMLInputElement>('#search-input'), status = document.querySelector<HTMLElement>('#search-status'), results = document.querySelector<HTMLElement>('#results');
 	const recent = document.querySelector<HTMLElement>('#recent-songs'), recentSection = document.querySelector<HTMLElement>('#recent-section');
@@ -38,12 +39,12 @@ import Layout from '../layouts/Layout.astro';
 		const token = localStorage.getItem('kotoba.access_token');
 		if (!supabaseUrl || !supabaseAnonKey || !token) throw new Error('Not authorized');
 		const response = await fetch(`${supabaseUrl}/functions/v1/genius`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-		if (response.status === 401) { clearAccessToken(); window.location.assign('/'); throw new Error('Not authorized'); }
+		if (response.status === 401) { clearAccessToken(); window.location.assign(base); throw new Error('Not authorized'); }
 		if (!response.ok) throw new Error('Genius request failed');
 		return response.json();
 	}
 
-	function songUrl(song: SearchSong) { const slug = song.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); sessionStorage.setItem(`kotoba.song.${slug}`, JSON.stringify(song)); return `/songs/${slug}`; }
+	function songUrl(song: SearchSong) { const slug = song.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); sessionStorage.setItem(`kotoba.song.${slug}`, JSON.stringify(song)); return `${base}song?slug=${encodeURIComponent(slug)}`; }
 
 	function renderSongs(songs: SearchSong[]) {
 		if (!results) return;
@@ -72,5 +73,5 @@ import Layout from '../layouts/Layout.astro';
 		event.preventDefault(); const query = input?.value.trim(); if (!query || !status) return; status.textContent = 'Searching…'; results?.replaceChildren();
 		try { const { songs } = await genius({ action: 'search', query }); renderSongs(songs); status.textContent = songs.length ? '' : 'No usable songs found.'; } catch { status.textContent = 'Search failed. Try again.'; }
 	});
-	if (!hasAccessToken()) window.location.assign('/');
+	if (!hasAccessToken()) window.location.assign(base);
 </script>
