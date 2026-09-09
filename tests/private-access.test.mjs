@@ -10,6 +10,7 @@ test('private access page contains the production authorization contract', async
   );
   const protectedPage = await readFile(new URL('../src/pages/songs.astro', import.meta.url), 'utf8');
   const geniusFunction = await readFile(new URL('../supabase/functions/genius/index.ts', import.meta.url), 'utf8');
+  const vocabularyFunction = await readFile(new URL('../supabase/functions/vocabulary/index.ts', import.meta.url), 'utf8');
 
   assert.match(page, /id="unlock-form"/);
   assert.match(page, /id="credential"/);
@@ -33,6 +34,9 @@ test('private access page contains the production authorization contract', async
   assert.match(geniusFunction, /instrumental/);
   assert.match(geniusFunction, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(geniusFunction, /isAuthorized/);
+  assert.match(vocabularyFunction, /operation === 'list'/);
+  assert.match(vocabularyFunction, /operation === 'learn'/);
+  assert.match(vocabularyFunction, /operation === 'seen'/);
   assert.doesNotMatch(protectedPage, /GENIUS_ACCESS_TOKEN/);
 });
 
@@ -53,9 +57,7 @@ test('lyrics route renders stored lyric text safely', async () => {
   assert.match(lyricsPage, /renderLyrics\(lyrics\)/);
   assert.doesNotMatch(lyricsPage, /getSupabaseClient|from\('vocabulary'\)/);
   assert.match(lyricsPage, /selectionchange/);
-  assert.match(lyricsPage, /action: 'vocabulary'/);
-  assert.match(geniusFunction, /operation === 'list'/);
-  assert.match(geniusFunction, /operation === 'learn'/);
-  assert.match(geniusFunction, /operation === 'seen'/);
+  assert.match(lyricsPage, /functions\/v1\/vocabulary/);
+  assert.doesNotMatch(geniusFunction, /operation === 'list'|operation === 'learn'|operation === 'seen'/);
   assert.doesNotMatch(lyricsPage, /DOMParser/);
 });

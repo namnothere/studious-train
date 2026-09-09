@@ -17,20 +17,6 @@ Deno.serve(async (request) => {
       const songs = await supabaseRequest('/rest/v1/songs?select=genius_id,title,artist,artwork_url,genius_url&order=created_at.desc&limit=5');
       return json({ songs: songs.map((song: Record<string, unknown>) => ({ geniusId: song.genius_id, title: song.title, artist: song.artist, artworkUrl: song.artwork_url, geniusUrl: song.genius_url })) });
     }
-    if (body.action === 'vocabulary') {
-      if (body.operation === 'list') return json({ vocabulary: await supabaseRequest('/rest/v1/vocabulary?select=word') });
-      if (body.operation === 'learn' && typeof body.word === 'string' && body.word.length) {
-        const vocabulary = await supabaseRequest('/rest/v1/vocabulary', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body: JSON.stringify({ word: body.word }) });
-        return json({ vocabulary: vocabulary[0] ?? { word: body.word } });
-      }
-      if (body.operation === 'seen' && Array.isArray(body.words)) {
-        const words = body.words.filter((word: unknown): word is string => typeof word === 'string' && word.length);
-        if (!words.length) return json({ vocabulary: [] });
-        const filter = words.map((word) => encodeURIComponent(JSON.stringify(word))).join(',');
-        const vocabulary = await supabaseRequest(`/rest/v1/vocabulary?word=in.(${filter})&select=word`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ last_seen: new Date().toISOString() }) });
-        return json({ vocabulary });
-      }
-    }
     if (body.action === 'search' && typeof body.query === 'string' && body.query.trim()) {
       const response = await geniusRequest(`/search/?q=${encodeURIComponent(body.query.trim())}&per_page=20&page=1`, accessToken);
       const songs = response.hits
