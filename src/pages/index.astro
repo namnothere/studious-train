@@ -24,7 +24,7 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
 	import { saveAccessToken, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
-	const base = import.meta.env.BASE_URL;
+	const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 	const form = document.querySelector<HTMLFormElement>('#unlock-form');
 	const input = document.querySelector<HTMLInputElement>('#credential');
 	const button = document.querySelector<HTMLButtonElement>('#unlock-button');
@@ -44,7 +44,7 @@ import Layout from '../layouts/Layout.astro';
 			const { access_token: accessToken } = await response.json();
 			if (!accessToken) throw new Error('Authorization token missing');
 			saveAccessToken(accessToken);
-			window.location.assign(`${base}songs`);
+			window.location.assign(`${base}/songs`);
 		} catch {
 			error.classList.remove('hidden');
 			button.disabled = false;
