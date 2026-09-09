@@ -33,8 +33,10 @@ import Layout from '../../layouts/Layout.astro';
 	const title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), body = document.querySelector<HTMLElement>('#lyrics-body'), status = document.querySelector<HTMLElement>('#lyrics-status'), artwork = document.querySelector<HTMLImageElement>('#lyrics-artwork'), learnAction = document.querySelector<HTMLButtonElement>('#learn-action');
 	const learned = new Set<string>();
 	const seenOnPage = new Set<string>();
+	// Lyrics arrive as HTML; keep the markup and sanitize it in renderLyrics().
 	let lyrics = '';
 	let pendingSelection = '';
+	const allowedTags = new Set(['BR', 'P', 'DIV', 'SPAN', 'I', 'EM', 'B', 'STRONG']);
 	if (title) title.textContent = song.title;
 	if (artist) artist.textContent = song.artist;
 	if (artwork && song.artworkUrl) { artwork.src = song.artworkUrl; artwork.classList.remove('hidden'); }
@@ -50,8 +52,26 @@ import Layout from '../../layouts/Layout.astro';
 			mark.dataset.learnedWords = words.join('\u0000');
 			return mark;
 		});
-		const lines = lyrics.split('\n');
-		body.replaceChildren(...lines.flatMap((line, index) => index === lines.length - 1 ? renderText(line) : [...renderText(line), document.createElement('br')]));
+		const source = new DOMParser().parseFromString(lyrics, 'text/html').body;
+		const copy = (node: Node): Node => {
+			if (node.nodeType === Node.TEXT_NODE) {
+				const fragment = document.createDocumentFragment();
+				fragment.append(...renderText(node.textContent ?? ''));
+				return fragment;
+			}
+			if (node.nodeType !== Node.ELEMENT_NODE) return document.createTextNode('');
+			const element = node as HTMLElement;
+			if (!allowedTags.has(element.tagName)) return ['SCRIPT', 'STYLE'].includes(element.tagName) ? document.createTextNode('') : document.createTextNode(element.textContent ?? '');
+			const clean = document.createElement(element.tagName.toLowerCase());
+			for (const child of element.childNodes) clean.append(copy(child));
+			return clean;
+		};
+		const safe = document.createElement('div');
+		for (const child of source.childNodes) {
+			if (child.nodeType === Node.TEXT_NODE) safe.append(...renderText(child.textContent ?? ''));
+			else safe.append(copy(child));
+		}
+		body.replaceChildren(...safe.childNodes);
 	}
 
 	function hideLearnAction() {

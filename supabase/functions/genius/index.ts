@@ -9,7 +9,7 @@ Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (!(await isAuthorized(request))) return json({ error: 'Unauthorized' }, 401);
-  const accessToken = Deno.env.get('GENIUS_ACCESS_TOKEN');
+  const accessToken = Deno.env.get('SONG_ACCESS_TOKEN');
   if (!accessToken) return json({ error: 'Server misconfigured' }, 500);
   try {
     const body = await request.json();
@@ -77,8 +77,8 @@ async function supabaseRequest(path: string, options: RequestInit = {}) {
 }
 
 async function geniusRequest(path: string, accessToken: string) {
-  const geniusApi = Deno.env.get('GENIUS_BASE_API_URL');
-  const geniusHost = Deno.env.get('GENIUS_BASE_API_HOST');
+  const geniusApi = Deno.env.get('SONG_BASE_API_URL');
+  const geniusHost = Deno.env.get('SONG_BASE_API_HOST');
   if (!geniusApi || !geniusHost) throw new Error('Genius server configuration is missing');
   const response = await fetch(`${geniusApi}${path}`, {
     headers: {
