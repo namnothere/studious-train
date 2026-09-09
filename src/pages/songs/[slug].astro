@@ -13,31 +13,122 @@ import Layout from '../../layouts/Layout.astro';
 				<img id="lyrics-artwork" class="hidden h-20 w-20 rounded-lg object-cover" alt="" />
 				<div><h1 id="lyrics-title" class="m-0 text-[30px] font-bold leading-none tracking-[-0.04em]"></h1><p id="lyrics-artist" class="mt-2 text-[13px] text-[#8a908d]"></p></div>
 			</div>
-			<p id="lyrics-status" class="text-sm text-[#8a908d]" aria-live="polite">Loading lyrics…</p>
-			<div id="lyrics-body" class="whitespace-pre-wrap text-[18px] leading-[2.05] text-[#e2e5e3]"></div>
+			<div id="lyrics-status" class="fixed inset-0 z-10 flex items-center justify-center" role="status" aria-live="polite">
+				<span class="size-8 animate-spin rounded-full border-2 border-[#8a908d]/30 border-t-[#d7ff72]" aria-hidden="true"></span>
+				<span class="sr-only">Loading lyrics…</span>
+			</div>
+			<div id="lyrics-body" class="relative text-[18px] leading-[2.05] text-[#e2e5e3]"></div>
+			<button id="learn-action" type="button" hidden class="fixed z-30 rounded-md bg-[#d7ff72] px-2.5 py-1.5 text-xs font-bold text-[#0d0f10] shadow-lg">Learn</button>
 		</section>
 	</main>
 </Layout>
 
 <script>
 	import { clearAccessToken, hasAccessToken, supabaseAnonKey, supabaseUrl } from '../../lib/supabase';
+	import { highlightSegments } from '../../lib/lyrics.mjs';
 	type SearchSong = { geniusId: number; title: string; artist: string; artworkUrl: string | null; geniusUrl: string };
 	const slug = window.location.pathname.split('/').filter(Boolean).pop() ?? '';
 	const stored = sessionStorage.getItem(`kotoba.song.${slug}`);
 	const song: SearchSong = stored ? JSON.parse(stored) : { geniusId: 0, title: slug.replaceAll('-', ' '), artist: '', artworkUrl: null, geniusUrl: '' };
-	const title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), body = document.querySelector<HTMLElement>('#lyrics-body'), status = document.querySelector<HTMLElement>('#lyrics-status'), artwork = document.querySelector<HTMLImageElement>('#lyrics-artwork');
+	const title = document.querySelector<HTMLElement>('#lyrics-title'), artist = document.querySelector<HTMLElement>('#lyrics-artist'), body = document.querySelector<HTMLElement>('#lyrics-body'), status = document.querySelector<HTMLElement>('#lyrics-status'), artwork = document.querySelector<HTMLImageElement>('#lyrics-artwork'), learnAction = document.querySelector<HTMLButtonElement>('#learn-action');
+	const learned = new Set<string>();
+	let lyrics = '';
+	let pendingSelection = '';
+	const allowedTags = new Set(['BR', 'P', 'DIV', 'SPAN', 'I', 'EM', 'B', 'STRONG']);
 	if (title) title.textContent = song.title;
 	if (artist) artist.textContent = song.artist;
 	if (artwork && song.artworkUrl) { artwork.src = song.artworkUrl; artwork.classList.remove('hidden'); }
 	function renderLyrics(lyrics: string) {
 		if (!body) return;
-		const parsed = new DOMParser().parseFromString(lyrics, 'text/html');
-		parsed.body.querySelectorAll('*').forEach((element) => {
-			if (element.tagName !== 'P' && element.tagName !== 'BR') element.replaceWith(...element.childNodes);
-			else [...element.attributes].forEach(({ name }) => element.removeAttribute(name));
+		const renderText = (text: string) => highlightSegments(text, [...learned]).map(({ text, words }) => {
+			if (!words.length) return document.createTextNode(text);
+			const mark = document.createElement('mark');
+			mark.className = 'rounded-sm bg-[#d7ff72]/25 text-inherit';
+			mark.textContent = text;
+			mark.title = words.join(', ');
+			if (words.length > 1) mark.style.background = 'linear-gradient(transparent 12%, #d7ff72 12% 52%, #8de1ff 52% 88%, transparent 88%)';
+			mark.dataset.learnedWords = words.join('\u0000');
+			return mark;
 		});
-		body.replaceChildren(...parsed.body.childNodes);
+		const source = /<[^>]+>/.test(lyrics) ? new DOMParser().parseFromString(lyrics, 'text/html').body : document.createElement('div');
+		if (!source.childNodes.length) source.textContent = lyrics;
+		const copy = (node: Node): Node => {
+			if (node.nodeType === Node.TEXT_NODE) {
+				const fragment = document.createDocumentFragment();
+				fragment.append(...renderText(node.textContent ?? ''));
+				return fragment;
+			}
+			if (node.nodeType !== Node.ELEMENT_NODE) return document.createTextNode('');
+			const element = node as HTMLElement;
+			if (!allowedTags.has(element.tagName)) return ['SCRIPT', 'STYLE'].includes(element.tagName) ? document.createTextNode('') : document.createTextNode(element.textContent ?? '');
+			const clean = document.createElement(element.tagName.toLowerCase());
+			for (const child of element.childNodes) clean.append(copy(child));
+			return clean;
+		};
+		const safe = document.createElement('div');
+		for (const child of source.childNodes) {
+			if (child.nodeType === Node.TEXT_NODE) safe.append(...renderText(child.textContent ?? ''));
+			else safe.append(copy(child));
+		}
+		body.replaceChildren(...safe.childNodes);
 	}
+
+	function hideLearnAction() {
+		pendingSelection = '';
+		if (learnAction) learnAction.hidden = true;
+	}
+
+	async function vocabularyRequest(body: object) {
+		const token = localStorage.getItem('kotoba.access_token');
+		if (!supabaseUrl || !supabaseAnonKey || !token) throw new Error('Not authorized');
+		const response = await fetch(`${supabaseUrl}/functions/v1/vocabulary`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		if (response.status === 401) { clearAccessToken(); window.location.assign('/'); throw new Error('Not authorized'); }
+		if (!response.ok) throw new Error('Vocabulary request failed');
+		return response.json();
+	}
+
+	document.addEventListener('selectionchange', () => {
+		if (!body || !learnAction) return;
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return hideLearnAction();
+		const range = selection.getRangeAt(0);
+		const selected = selection.toString();
+		if (!selected || !body.contains(range.commonAncestorContainer) || !body.contains(range.startContainer) || !body.contains(range.endContainer) || learned.has(selected)) return hideLearnAction();
+		pendingSelection = selected;
+		const rect = range.getBoundingClientRect();
+		learnAction.style.left = `${Math.max(8, rect.left + rect.width / 2 - 28)}px`;
+		learnAction.style.top = `${Math.max(8, rect.top - 42)}px`;
+		learnAction.hidden = false;
+	});
+
+	async function markSeen() {
+		const encountered = [...learned].filter((word) => lyrics.includes(word));
+		if (!encountered.length) return;
+		await vocabularyRequest({ operation: 'seen', words: encountered });
+	}
+
+	async function loadVocabulary() {
+		const { vocabulary } = await vocabularyRequest({ operation: 'list' });
+		for (const entry of vocabulary ?? []) if (typeof entry.word === 'string') learned.add(entry.word);
+	}
+
+	learnAction?.addEventListener('click', async () => {
+		const word = pendingSelection;
+		if (!word) return;
+		learnAction.disabled = true;
+		try {
+			const { vocabulary } = await vocabularyRequest({ operation: 'learn', word });
+			learned.add(vocabulary.word);
+			renderLyrics(lyrics);
+			await markSeen();
+		} catch {
+			if (status) status.textContent = 'Could not save that vocabulary entry.';
+		} finally {
+			learnAction.disabled = false;
+			hideLearnAction();
+			window.getSelection()?.removeAllRanges();
+		}
+	});
 
 	async function loadLyrics() {
 		const token = localStorage.getItem('kotoba.access_token');
@@ -48,7 +139,10 @@ import Layout from '../../layouts/Layout.astro';
 		const { song: loadedSong } = await response.json();
 		if (title) title.textContent = loadedSong.title;
 		if (artist) artist.textContent = loadedSong.artist;
-		renderLyrics(loadedSong.lyrics);
+		lyrics = loadedSong.lyrics;
+		await loadVocabulary();
+		renderLyrics(lyrics);
+		await markSeen();
 		if (status) status.remove();
 	}
 	if (!hasAccessToken()) window.location.assign('/'); else loadLyrics().catch(() => { if (status) status.textContent = 'Could not load lyrics. Return to search and try another song.'; });

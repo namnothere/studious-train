@@ -10,6 +10,7 @@ test('private access page contains the production authorization contract', async
   );
   const protectedPage = await readFile(new URL('../src/pages/songs.astro', import.meta.url), 'utf8');
   const geniusFunction = await readFile(new URL('../supabase/functions/genius/index.ts', import.meta.url), 'utf8');
+  const vocabularyFunction = await readFile(new URL('../supabase/functions/vocabulary/index.ts', import.meta.url), 'utf8');
 
   assert.match(page, /id="unlock-form"/);
   assert.match(page, /id="credential"/);
@@ -29,10 +30,13 @@ test('private access page contains the production authorization contract', async
   assert.match(geniusFunction, /`\/search\/\?q=/);
   assert.match(geniusFunction, /`\/song\/lyrics\//);
   assert.match(geniusFunction, /response\.status/);
-  assert.match(geniusFunction, /response\.response\?\.lyrics\?\.lyrics\?\.body\?\.plain/);
+  assert.match(geniusFunction, /response\.lyrics\?\.lyrics\?\.body\?\.html/);
   assert.match(geniusFunction, /instrumental/);
   assert.match(geniusFunction, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(geniusFunction, /isAuthorized/);
+  assert.match(vocabularyFunction, /operation === 'list'/);
+  assert.match(vocabularyFunction, /operation === 'learn'/);
+  assert.match(vocabularyFunction, /operation === 'seen'/);
   assert.doesNotMatch(protectedPage, /GENIUS_ACCESS_TOKEN/);
 });
 
@@ -45,9 +49,16 @@ test('song cards navigate to the standalone lyrics route', async () => {
   assert.match(lyricsPage, /action: 'song'/);
 });
 
-test('lyrics route renders stored lyric HTML', async () => {
+test('lyrics route renders stored lyric text safely', async () => {
   const lyricsPage = await readFile(new URL('../src/pages/songs/[slug].astro', import.meta.url), 'utf8');
+  const geniusFunction = await readFile(new URL('../supabase/functions/genius/index.ts', import.meta.url), 'utf8');
 
-  assert.match(lyricsPage, /renderLyrics\(loadedSong\.lyrics\)/);
-  assert.doesNotMatch(lyricsPage, /body\.textContent = loadedSong\.lyrics/);
+  assert.match(lyricsPage, /lyrics = loadedSong\.lyrics/);
+  assert.match(lyricsPage, /renderLyrics\(lyrics\)/);
+  assert.doesNotMatch(lyricsPage, /getSupabaseClient|from\('vocabulary'\)/);
+  assert.match(lyricsPage, /selectionchange/);
+  assert.match(lyricsPage, /functions\/v1\/vocabulary/);
+  assert.doesNotMatch(geniusFunction, /operation === 'list'|operation === 'learn'|operation === 'seen'/);
+  assert.match(lyricsPage, /new DOMParser\(\)/);
+  assert.match(lyricsPage, /allowedTags/);
 });
